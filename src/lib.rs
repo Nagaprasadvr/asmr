@@ -27,16 +27,20 @@ pub unsafe extern "C" fn entrypoint(mut input: *mut u8) -> u32 {
     let mut num_accounts = MaybeUninit::<usize>::uninit();
     #[cfg(target_os = "solana")]
     core::arch::asm!(
+        //
+        // r1 -> input cursor
+        // r7 -> accounts cursor 
+        // r9 -> no of accounts passed
+        // r5 -> copy of r9, which tracks no of accounts processed
+        // r8 -> stores account data length for current account
+        // r6 -> dup marker or acc index
         // Load num accounts (r9 will be used to move into num_accounts stack..)
         "ldxdw r9, [r1 + 0]",
-        "mov64 r5, r9",
-
+        "jeq r9, 0, 6f", // check there's at least one account or else exit quick
         // Initialize accounts cursor
         "lddw r7, {accounts_ptr}",
-
         // first account is GUARANTEED to be nondup so we don't need dup check
         // inline nondup case
-        "jeq r5, 0, 6f", // still need to check there's at least one account
         /* START INLINE */
         // Store account ptr and load account data len
         "stxdw [r7 + 0], r1",
@@ -46,12 +50,13 @@ pub unsafe extern "C" fn entrypoint(mut input: *mut u8) -> u32 {
         "add64 r1, r8",
         "add64 r1, 7",
         "and64 r1, 0xFFFFFFFFFFFFFFF8",
+        // Check if finished
+        "jeq r9, 1, 6f",
+        // copy r9 to r5 to track no_of_accounts processed
+        "mov64 r5, r9",
         // Decrement account counter
         "sub64 r5, 1",
         /* END INLINE (DON'T NEED JUMP) */
-
-        // Check if finished
-        "jeq r5, 0, 6f",
 
         "2:",
         // Otherwise, increment account cursor, load dup marker, jump to dup if dup

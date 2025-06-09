@@ -45,7 +45,7 @@ fn main() {
 
     for n in [2, 4, 8, 16, 32, 64] {
         println!("\nFor {n} dup accounts:");
-        // nondup;
+        // dup;
         let ixn = Instruction {
             program_id,
             accounts: vec![AccountMeta::new_readonly(Pubkey::new_unique(), false); n],
